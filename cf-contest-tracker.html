@@ -1,0 +1,961 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CF Contest Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #111118;
+    --border: #1e1e2e;
+    --accent: #00ff9d;
+    --accent2: #ff6b35;
+    --accent3: #7c3aed;
+    --text: #e2e8f0;
+    --muted: #4a5568;
+    --green: #00ff9d;
+    --red: #ff4757;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Animated grid background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,255,157,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,255,157,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 40px 24px;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* Header */
+  header {
+    text-align: center;
+    margin-bottom: 56px;
+    animation: fadeDown 0.6s ease both;
+  }
+
+  .logo-tag {
+    display: inline-block;
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    padding: 4px 12px;
+    margin-bottom: 20px;
+    text-transform: uppercase;
+  }
+
+  h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(2rem, 5vw, 3.5rem);
+    font-weight: 800;
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+  }
+
+  h1 span.hl { color: var(--accent); }
+  h1 span.hl2 { color: var(--accent2); }
+
+  .subtitle {
+    margin-top: 14px;
+    color: var(--muted);
+    font-size: 13px;
+    letter-spacing: 0.05em;
+  }
+
+  /* Upload zone */
+  .upload-section {
+    animation: fadeUp 0.6s 0.1s ease both;
+  }
+
+  .drop-zone {
+    border: 1.5px dashed var(--border);
+    background: var(--surface);
+    border-radius: 4px;
+    padding: 48px 32px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .drop-zone::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(0,255,157,0.04), transparent 60%);
+    pointer-events: none;
+  }
+
+  .drop-zone:hover, .drop-zone.drag-over {
+    border-color: var(--accent);
+    background: rgba(0,255,157,0.04);
+  }
+
+  .drop-zone input[type="file"] {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+    width: 100%;
+    height: 100%;
+  }
+
+  .upload-icon {
+    font-size: 40px;
+    margin-bottom: 16px;
+    display: block;
+    filter: grayscale(0.4);
+  }
+
+  .drop-label {
+    font-family: 'Syne', sans-serif;
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+
+  .drop-hint {
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .drop-hint code {
+    color: var(--accent2);
+    background: rgba(255,107,53,0.1);
+    padding: 1px 6px;
+    border-radius: 3px;
+  }
+
+  /* CSV format hint */
+  .format-hint {
+    margin-top: 16px;
+    background: rgba(124,58,237,0.08);
+    border: 1px solid rgba(124,58,237,0.25);
+    border-radius: 4px;
+    padding: 14px 18px;
+    font-size: 12px;
+    color: #a78bfa;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .format-hint .fi-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+
+  /* Action bar */
+  .action-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 20px;
+    flex-wrap: wrap;
+  }
+
+  .btn {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 10px 24px;
+    border: none;
+    cursor: pointer;
+    border-radius: 3px;
+    transition: all 0.15s;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: #000;
+  }
+  .btn-primary:hover:not(:disabled) {
+    background: #00e68a;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 20px rgba(0,255,157,0.3);
+  }
+  .btn-primary:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+  }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid var(--border);
+  }
+  .btn-ghost:hover { border-color: var(--muted); color: var(--text); }
+
+  /* File info pill */
+  .file-pill {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(0,255,157,0.08);
+    border: 1px solid rgba(0,255,157,0.2);
+    border-radius: 99px;
+    padding: 6px 14px;
+    font-size: 12px;
+    color: var(--accent);
+    animation: popIn 0.2s ease both;
+  }
+
+  /* Log panel */
+  .log-panel {
+    margin-top: 28px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+    animation: fadeUp 0.3s ease both;
+  }
+
+  .log-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px;
+    background: rgba(255,255,255,0.02);
+    border-bottom: 1px solid var(--border);
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .log-body {
+    padding: 12px 16px;
+    max-height: 200px;
+    overflow-y: auto;
+    font-size: 12px;
+    line-height: 1.8;
+  }
+
+  .log-body::-webkit-scrollbar { width: 4px; }
+  .log-body::-webkit-scrollbar-track { background: transparent; }
+  .log-body::-webkit-scrollbar-thumb { background: var(--border); }
+
+  .log-line { display: flex; gap: 10px; }
+  .log-line .ts { color: var(--muted); flex-shrink: 0; }
+  .log-line .msg { }
+  .log-line.ok .msg { color: var(--green); }
+  .log-line.err .msg { color: var(--red); }
+  .log-line.info .msg { color: var(--text); }
+  .log-line.warn .msg { color: #fbbf24; }
+
+  /* Progress bar */
+  .progress-wrap {
+    margin-top: 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+    height: 6px;
+  }
+
+  .progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), #00d4ff);
+    transition: width 0.4s ease;
+    box-shadow: 0 0 12px rgba(0,255,157,0.4);
+  }
+
+  .progress-label {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 6px;
+    text-align: right;
+  }
+
+  /* Stats row */
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px;
+    margin-top: 28px;
+    animation: fadeUp 0.4s ease both;
+  }
+
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 18px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+  }
+  .stat-card:nth-child(1)::before { background: var(--accent); }
+  .stat-card:nth-child(2)::before { background: var(--accent2); }
+  .stat-card:nth-child(3)::before { background: var(--accent3); }
+  .stat-card:nth-child(4)::before { background: #06b6d4; }
+
+  .stat-label { font-size: 10px; color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 8px; }
+  .stat-val { font-family: 'Syne', sans-serif; font-size: 2rem; font-weight: 800; line-height: 1; }
+
+  /* Results section */
+  .results-section {
+    margin-top: 40px;
+    animation: fadeUp 0.5s ease both;
+  }
+
+  .section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .section-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 1.2rem;
+    font-weight: 800;
+  }
+
+  .search-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 8px 14px;
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    width: 240px;
+    transition: border-color 0.2s;
+    outline: none;
+  }
+  .search-box:focus { border-color: var(--accent); }
+  .search-box::placeholder { color: var(--muted); }
+
+  /* Table */
+  .table-wrap {
+    overflow-x: auto;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+
+  thead tr {
+    background: rgba(255,255,255,0.03);
+    border-bottom: 1px solid var(--border);
+  }
+
+  th {
+    padding: 12px 16px;
+    text-align: left;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    white-space: nowrap;
+    cursor: pointer;
+    user-select: none;
+    transition: color 0.15s;
+  }
+  th:hover { color: var(--accent); }
+  th.sort-asc::after { content: ' ↑'; color: var(--accent); }
+  th.sort-desc::after { content: ' ↓'; color: var(--accent); }
+
+  tbody tr {
+    border-bottom: 1px solid rgba(30,30,46,0.6);
+    transition: background 0.1s;
+    animation: rowFadeIn 0.3s ease both;
+  }
+
+  tbody tr:hover { background: rgba(0,255,157,0.03); }
+  tbody tr:last-child { border-bottom: none; }
+
+  td {
+    padding: 12px 16px;
+    vertical-align: middle;
+  }
+
+  .contest-name-cell { max-width: 340px; }
+  .contest-name-link {
+    color: var(--text);
+    text-decoration: none;
+    transition: color 0.15s;
+    font-size: 13px;
+    line-height: 1.4;
+  }
+  .contest-name-link:hover { color: var(--accent); }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 9px;
+    border-radius: 3px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+  }
+
+  .badge-type {
+    background: rgba(124,58,237,0.15);
+    color: #a78bfa;
+    border: 1px solid rgba(124,58,237,0.3);
+  }
+
+  .badge-count {
+    background: rgba(0,255,157,0.1);
+    color: var(--accent);
+    border: 1px solid rgba(0,255,157,0.2);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .users-cell {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    max-width: 300px;
+  }
+
+  .user-tag {
+    background: rgba(255,107,53,0.1);
+    color: var(--accent2);
+    border: 1px solid rgba(255,107,53,0.2);
+    border-radius: 3px;
+    padding: 2px 8px;
+    font-size: 11px;
+    text-decoration: none;
+    transition: background 0.15s;
+    white-space: nowrap;
+  }
+  .user-tag:hover { background: rgba(255,107,53,0.2); }
+
+  .contest-id {
+    font-size: 11px;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Empty state */
+  .empty-state {
+    text-align: center;
+    padding: 60px 24px;
+    color: var(--muted);
+  }
+  .empty-state .es-icon { font-size: 48px; margin-bottom: 16px; opacity: 0.5; }
+  .empty-state p { font-size: 13px; }
+
+  /* Spinner */
+  .spinner {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border: 2px solid rgba(0,255,157,0.2);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    vertical-align: middle;
+    margin-right: 6px;
+  }
+
+  /* Animations */
+  @keyframes fadeDown { from { opacity:0; transform:translateY(-16px); } to { opacity:1; transform:none; } }
+  @keyframes fadeUp { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:none; } }
+  @keyframes popIn { from { opacity:0; transform:scale(0.8); } to { opacity:1; transform:none; } }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  @keyframes rowFadeIn { from { opacity:0; transform:translateX(-8px); } to { opacity:1; transform:none; } }
+
+  .hidden { display: none !important; }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  @media (max-width: 600px) {
+    .users-cell { max-width: 180px; }
+    .contest-name-cell { max-width: 180px; }
+    .search-box { width: 100%; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <div class="logo-tag">⚡ Codeforces Tool</div>
+    <h1><span class="hl">Contest</span> AC<br><span class="hl2">Tracker</span></h1>
+    <p class="subtitle">Upload a CSV of usernames → see every contest where <span style="color:var(--red)">nobody got an AC</span></p>
+  </header>
+
+  <!-- Upload -->
+  <div class="upload-section" id="uploadSection">
+    <div class="drop-zone" id="dropZone">
+      <input type="file" id="csvInput" accept=".csv,.txt">
+      <span class="upload-icon">📂</span>
+      <div class="drop-label">Drop your CSV file here</div>
+      <div class="drop-hint">or click to browse &nbsp;·&nbsp; First column = <code>codeforces username</code></div>
+    </div>
+
+    <div class="format-hint">
+      <span class="fi-icon">ℹ️</span>
+      <div>
+        <strong>CSV Format:</strong> Each row's <em>first column</em> must be a Codeforces username.<br>
+        Extra columns are ignored. A header row is auto-detected and skipped if present.<br>
+        Example: &nbsp;<code style="color:#00ff9d;background:rgba(0,255,157,.08);padding:2px 7px;border-radius:3px;">tourist,Romania,legend</code>
+      </div>
+    </div>
+
+    <div class="action-bar" id="actionBar">
+      <span id="filePill" class="hidden"></span>
+      <button class="btn btn-primary" id="runBtn" disabled>
+        <span id="runBtnSpinner" class="spinner hidden"></span>
+        <span id="runBtnText">▶ Run Analysis</span>
+      </button>
+      <button class="btn btn-ghost hidden" id="resetBtn">✕ Reset</button>
+    </div>
+
+    <!-- Progress -->
+    <div id="progressSection" class="hidden">
+      <div class="progress-wrap">
+        <div class="progress-bar" id="progressBar" style="width:0%"></div>
+      </div>
+      <div class="progress-label" id="progressLabel">0 / 0</div>
+    </div>
+
+    <!-- Log -->
+    <div class="log-panel hidden" id="logPanel">
+      <div class="log-header">
+        <span>Activity Log</span>
+        <span id="logCount">0 entries</span>
+      </div>
+      <div class="log-body" id="logBody"></div>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-row hidden" id="statsRow">
+    <div class="stat-card">
+      <div class="stat-label">Users</div>
+      <div class="stat-val" id="statUsers">0</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Zero-AC Contests</div>
+      <div class="stat-val" id="statContests">0</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Total Contests</div>
+      <div class="stat-val" id="statACs">0</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Failed</div>
+      <div class="stat-val" id="statFailed" style="color:var(--red)">0</div>
+    </div>
+  </div>
+
+  <!-- Results -->
+  <div class="results-section hidden" id="resultsSection">
+    <div class="section-header">
+      <div class="section-title">📋 Contests with <span style="color:var(--red)">Zero ACs</span> (participated but none solved)</div>
+      <input class="search-box" id="searchBox" type="text" placeholder="Search contest name or user…">
+    </div>
+    <div class="table-wrap">
+      <table id="resultsTable">
+        <thead>
+          <tr>
+            <th data-col="id">Contest ID</th>
+            <th data-col="name">Contest Name</th>
+            <th data-col="type">Type</th>
+            <th data-col="count" class="sort-desc">Participants</th>
+            <th data-col="users">Who Participated</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+    <div class="empty-state hidden" id="emptyState">
+      <div class="es-icon">🔍</div>
+      <p>No contests match your search.</p>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ─────────────────────────────────────────────
+//  State
+// ─────────────────────────────────────────────
+let usernames = [];
+let allRows = [];      // {id, name, type, users:[]}
+let sortCol = 'count';
+let sortDir = -1;      // -1 = desc, 1 = asc
+let logEntries = 0;
+
+// ─────────────────────────────────────────────
+//  DOM refs
+// ─────────────────────────────────────────────
+const dropZone    = document.getElementById('dropZone');
+const csvInput    = document.getElementById('csvInput');
+const filePill    = document.getElementById('filePill');
+const runBtn      = document.getElementById('runBtn');
+const runBtnText  = document.getElementById('runBtnText');
+const runBtnSpinner = document.getElementById('runBtnSpinner');
+const resetBtn    = document.getElementById('resetBtn');
+const progressSection = document.getElementById('progressSection');
+const progressBar     = document.getElementById('progressBar');
+const progressLabel   = document.getElementById('progressLabel');
+const logPanel    = document.getElementById('logPanel');
+const logBody     = document.getElementById('logBody');
+const logCount    = document.getElementById('logCount');
+const statsRow    = document.getElementById('statsRow');
+const resultsSection = document.getElementById('resultsSection');
+const tableBody   = document.getElementById('tableBody');
+const searchBox   = document.getElementById('searchBox');
+const emptyState  = document.getElementById('emptyState');
+
+// ─────────────────────────────────────────────
+//  File handling
+// ─────────────────────────────────────────────
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file) handleFile(file);
+});
+
+csvInput.addEventListener('change', () => {
+  if (csvInput.files[0]) handleFile(csvInput.files[0]);
+});
+
+function handleFile(file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    const text = e.target.result;
+    parseCSV(text, file.name);
+  };
+  reader.readAsText(file);
+}
+
+function parseCSV(text, filename) {
+  const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  let parsed = lines.map(l => l.split(',')[0].trim().replace(/^"|"$/g, '').trim());
+
+  // Skip header if first row looks like a label
+  if (parsed.length > 0 && /^(username|handle|user|name|cf|codeforces)/i.test(parsed[0])) {
+    parsed = parsed.slice(1);
+  }
+
+  parsed = [...new Set(parsed.filter(Boolean))];
+
+  if (parsed.length === 0) {
+    showFilePill(`❌ No usernames found`, '#ff4757');
+    runBtn.disabled = true;
+    return;
+  }
+
+  usernames = parsed;
+  showFilePill(`📄 ${filename} · ${usernames.length} user${usernames.length > 1 ? 's' : ''}`, 'var(--accent)');
+  runBtn.disabled = false;
+  resetBtn.classList.remove('hidden');
+}
+
+function showFilePill(text, color) {
+  filePill.textContent = text;
+  filePill.style.color = color;
+  filePill.style.borderColor = color + '55';
+  filePill.style.background = color + '11';
+  filePill.classList.remove('hidden');
+}
+
+// ─────────────────────────────────────────────
+//  Logging
+// ─────────────────────────────────────────────
+function log(msg, type = 'info') {
+  logPanel.classList.remove('hidden');
+  const now = new Date();
+  const ts = now.toLocaleTimeString('en-GB', { hour12: false });
+  const line = document.createElement('div');
+  line.className = `log-line ${type}`;
+  line.innerHTML = `<span class="ts">[${ts}]</span><span class="msg">${msg}</span>`;
+  logBody.appendChild(line);
+  logBody.scrollTop = logBody.scrollHeight;
+  logEntries++;
+  logCount.textContent = `${logEntries} entries`;
+}
+
+// ─────────────────────────────────────────────
+//  Codeforces API helpers
+// ─────────────────────────────────────────────
+async function fetchUserSubmissions(handle) {
+  const url = `https://codeforces.com/api/user.status?handle=${encodeURIComponent(handle)}&from=1&count=10000`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = await res.json();
+  if (data.status !== 'OK') throw new Error(data.comment || 'API error');
+  return data.result; // array of submission objects
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// ─────────────────────────────────────────────
+//  Main analysis
+// ─────────────────────────────────────────────
+runBtn.addEventListener('click', runAnalysis);
+
+async function runAnalysis() {
+  runBtn.disabled = true;
+  runBtnSpinner.classList.remove('hidden');
+  runBtnText.textContent = 'Running…';
+  progressSection.classList.remove('hidden');
+  logEntries = 0;
+  logBody.innerHTML = '';
+
+  // participatedMap: contestId → { id, name, type, users: Set }  — all contests entered
+  // acSet: Set of contestIds where ANY user got at least one AC
+  const participatedMap = new Map();
+  const acContestIds = new Set();
+
+  let failed = 0;
+
+  log(`Starting analysis for ${usernames.length} user(s)…`, 'info');
+
+  for (let i = 0; i < usernames.length; i++) {
+    const handle = usernames[i];
+    const pct = Math.round(((i + 1) / usernames.length) * 100);
+    progressBar.style.width = pct + '%';
+    progressLabel.textContent = `${i + 1} / ${usernames.length} — processing ${handle}`;
+    log(`Fetching submissions for <strong>${handle}</strong>…`, 'info');
+
+    try {
+      const subs = await fetchUserSubmissions(handle);
+
+      let participated = 0;
+      let hadAC = 0;
+
+      for (const sub of subs) {
+        const cid = sub.contestId;
+        if (!cid) continue;
+
+        // Track every contest this user submitted to (participated)
+        if (!participatedMap.has(cid)) {
+          participatedMap.set(cid, {
+            id: cid,
+            name: `Contest #${cid}`,
+            type: sub.author?.participantType || '—',
+            users: new Set()
+          });
+          participated++;
+        }
+        participatedMap.get(cid).users.add(handle);
+
+        // If this submission is AC, mark the contest as "has AC"
+        if (sub.verdict === 'OK') {
+          acContestIds.add(cid);
+        }
+      }
+
+      // Count contests where this user participated but had no AC
+      const userContests = [...participatedMap.keys()].filter(cid =>
+        participatedMap.get(cid).users.has(handle)
+      );
+      hadAC = userContests.filter(cid => acContestIds.has(cid)).length;
+
+      log(`✓ ${handle}: ${userContests.length} contest(s) participated, ${hadAC} with AC, ${userContests.length - hadAC} without`, 'ok');
+    } catch (err) {
+      failed++;
+      log(`✗ ${handle}: ${err.message}`, 'err');
+    }
+
+    // Rate limit: CF allows ~5 req/s; be polite
+    if (i < usernames.length - 1) await sleep(300);
+  }
+
+  // Keep only contests where NO user got any AC
+  const contestMap = new Map(
+    [...participatedMap.entries()].filter(([cid]) => !acContestIds.has(cid))
+  );
+
+  // Now fetch contest names from CF contest list
+  log('Fetching contest metadata…', 'info');
+  try {
+    const cres = await fetch('https://codeforces.com/api/contest.list?gym=false');
+    const cdata = await cres.json();
+    if (cdata.status === 'OK') {
+      const cByID = new Map(cdata.result.map(c => [c.id, c]));
+      for (const [cid, entry] of contestMap) {
+        const meta = cByID.get(cid);
+        if (meta) {
+          entry.name = meta.name;
+          entry.type = meta.type || entry.type;
+        }
+      }
+      log(`Contest names resolved (${cdata.result.length} contests in CF list)`, 'ok');
+    }
+  } catch (e) {
+    log('Could not fetch contest metadata: ' + e.message, 'warn');
+  }
+
+  progressBar.style.width = '100%';
+  progressLabel.textContent = '✓ Complete';
+  runBtnSpinner.classList.add('hidden');
+  runBtnText.textContent = '▶ Run Analysis';
+
+  // Build rows
+  allRows = Array.from(contestMap.values()).map(e => ({
+    id: e.id,
+    name: e.name,
+    type: e.type,
+    users: [...e.users],
+    count: e.users.size
+  }));
+
+  // Stats
+  const totalParticipated = participatedMap.size;
+  const zeroACCount = contestMap.size;
+  document.getElementById('statUsers').textContent = usernames.length;
+  document.getElementById('statContests').textContent = zeroACCount;
+  document.getElementById('statACs').textContent = totalParticipated;
+  document.getElementById('statFailed').textContent = failed;
+  statsRow.classList.remove('hidden');
+
+  log(`Done! Found ${contestMap.size} contest(s) where nobody got an AC.`, 'ok');
+
+  renderTable(allRows);
+  resultsSection.classList.remove('hidden');
+}
+
+// ─────────────────────────────────────────────
+//  Table rendering
+// ─────────────────────────────────────────────
+function renderTable(rows) {
+  // Sort
+  const sorted = [...rows].sort((a, b) => {
+    let av = a[sortCol], bv = b[sortCol];
+    if (typeof av === 'string') av = av.toLowerCase(), bv = bv.toLowerCase();
+    if (av < bv) return -1 * sortDir;
+    if (av > bv) return 1 * sortDir;
+    return 0;
+  });
+
+  tableBody.innerHTML = '';
+  if (sorted.length === 0) {
+    emptyState.classList.remove('hidden');
+    return;
+  }
+  emptyState.classList.add('hidden');
+
+  sorted.forEach((row, idx) => {
+    const tr = document.createElement('tr');
+    tr.style.animationDelay = Math.min(idx * 20, 400) + 'ms';
+
+    const cfUrl = `https://codeforces.com/contest/${row.id}`;
+    const typeLabel = row.type === 'CF' ? 'Codeforces' : row.type === 'ICPC' ? 'ICPC' : (row.type || '—');
+
+    const usersHTML = row.users.map(u =>
+      `<a class="user-tag" href="https://codeforces.com/profile/${encodeURIComponent(u)}" target="_blank">${escHtml(u)}</a>`
+    ).join('');
+
+    tr.innerHTML = `
+      <td><span class="contest-id">${row.id}</span></td>
+      <td class="contest-name-cell">
+        <a class="contest-name-link" href="${cfUrl}" target="_blank" rel="noopener">${escHtml(row.name)}</a>
+      </td>
+      <td><span class="badge badge-type">${escHtml(typeLabel)}</span></td>
+      <td><span class="badge badge-count">👤 ${row.count}</span></td>
+      <td><div class="users-cell">${usersHTML}</div></td>
+    `;
+    tableBody.appendChild(tr);
+  });
+}
+
+// Sorting
+document.querySelectorAll('th[data-col]').forEach(th => {
+  th.addEventListener('click', () => {
+    const col = th.dataset.col;
+    if (sortCol === col) sortDir *= -1;
+    else { sortCol = col; sortDir = -1; }
+    document.querySelectorAll('th').forEach(h => h.classList.remove('sort-asc', 'sort-desc'));
+    th.classList.add(sortDir === 1 ? 'sort-asc' : 'sort-desc');
+    const query = searchBox.value.toLowerCase().trim();
+    const filtered = query ? allRows.filter(r =>
+      r.name.toLowerCase().includes(query) ||
+      r.users.some(u => u.toLowerCase().includes(query)) ||
+      String(r.id).includes(query)
+    ) : allRows;
+    renderTable(filtered);
+  });
+});
+
+// Search
+searchBox.addEventListener('input', () => {
+  const q = searchBox.value.toLowerCase().trim();
+  const filtered = q ? allRows.filter(r =>
+    r.name.toLowerCase().includes(q) ||
+    r.users.some(u => u.toLowerCase().includes(q)) ||
+    String(r.id).includes(q)
+  ) : allRows;
+  renderTable(filtered);
+});
+
+// Reset
+resetBtn.addEventListener('click', () => {
+  usernames = [];
+  allRows = [];
+  csvInput.value = '';
+  filePill.classList.add('hidden');
+  runBtn.disabled = true;
+  resetBtn.classList.add('hidden');
+  progressSection.classList.add('hidden');
+  logPanel.classList.add('hidden');
+  statsRow.classList.add('hidden');
+  resultsSection.classList.add('hidden');
+  logBody.innerHTML = '';
+  logEntries = 0;
+  progressBar.style.width = '0%';
+  tableBody.innerHTML = '';
+  searchBox.value = '';
+});
+
+// ─────────────────────────────────────────────
+//  Utils
+// ─────────────────────────────────────────────
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+</body>
+</html>
